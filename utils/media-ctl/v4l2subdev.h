@@ -418,4 +418,12 @@ enum v4l2_quantization v4l2_subdev_string_to_quantization(const char *string);
 const enum v4l2_mbus_pixelcode *v4l2_subdev_pixelcode_list(
 	unsigned int *length);
 
+int v4l2_subdev_get_vc(struct media_entity *entity, __u32 *vc_id,
+	unsigned int pad, unsigned int stream,
+	enum v4l2_subdev_format_whence which);
+
+int v4l2_subdev_set_vc(struct media_entity *entity,
+	unsigned int pad, unsigned int stream, __u32 *vc_id,
+	enum v4l2_subdev_format_whence which);
+
 #endif

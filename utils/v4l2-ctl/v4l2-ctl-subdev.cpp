@@ -39,6 +39,11 @@ static struct v4l2_subdev_frame_size_enum frmsize;
 static struct v4l2_subdev_frame_interval_enum frmival;
 static __u32 set_fps_pad;
 static __u32 set_fps_stream = 0;
+static __u32 get_vc_pad;
+static __u32 get_vc_stream = 0;
+static __u32 set_vc_pad;
+static __u32 set_vc_stream = 0;
+static __u32 set_vc_id;
 static double set_fps;
 static struct v4l2_subdev_routing routing;
 static struct v4l2_subdev_route routes[NUM_ROUTES_MAX];
@@ -65,6 +70,8 @@ void subdev_usage()
 	       "                     See --set-subdev-selection command for the valid <target> values.\n"
 	       "  --get-subdev-fps pad=<pad>,stream=<stream>\n"
 	       "                     query the frame rate [VIDIOC_SUBDEV_G_FRAME_INTERVAL]\n"
+	       "  --get-subdev-vc pad=<pad>,stream=<stream>\n"
+	       "                     Query the virtual channel for the given pad and stream [VIDIOC_SUBDEV_G_VC]\n"
 	       "  --set-subdev-fmt   (for testing only, otherwise use media-ctl)\n"
 	       "  --try-subdev-fmt pad=<pad>,stream=<stream>,width=<w>,height=<h>,code=<code>,field=<f>,colorspace=<c>,\n"
 	       "                   xfer=<xf>,ycbcr=<y>,hsv=<hsv>,quantization=<q>\n"
@@ -95,6 +102,8 @@ void subdev_usage()
 	       "                     flags=le|ge|keep-config\n"
 	       "  --set-subdev-fps pad=<pad>,stream=<stream>,fps=<fps> (for testing only, otherwise use media-ctl)\n"
 	       "                     set the frame rate [VIDIOC_SUBDEV_S_FRAME_INTERVAL]\n"
+	       "  --set-subdev-vc pad=<pad>,stream=<stream>,vc=<vc> (for testing only, otherwise use media-ctl)\n"
+	       "                     Set the virtual channel [VIDIOC_SUBDEV_S_VC]\n"
 	       "  --get-routing      Print the route topology\n"
 	       "  --set-routing <routes>\n"
 	       "                     Comma-separated list of route descriptors to setup\n"
@@ -458,6 +467,58 @@ void subdev_cmd(int ch, char *optarg)
 			}
 		}
 		break;
+	case OptGetSubDevVC:
+		subs = optarg;
+
+		while (*subs != '\0') {
+			static constexpr const char *subopts[] = {
+				"pad",
+				"stream",
+				nullptr
+			};
+
+			switch (parse_subopt(&subs, subopts, &value)) {
+			case 0:
+				get_vc_pad = strtoul(value, nullptr, 0);
+				break;
+			case 1:
+				get_vc_stream = strtoul(value, nullptr, 0);
+				break;
+			default:
+				fprintf(stderr, "Unknown option\n");
+				subdev_usage();
+				std::exit(EXIT_FAILURE);
+			}
+		}
+		break;
+	case OptSetSubDevVC:
+		subs = optarg;
+
+		while (*subs != '\0') {
+			static constexpr const char *subopts[] = {
+				"pad",
+				"stream",
+				"vc",
+				nullptr
+			};
+
+			switch (parse_subopt(&subs, subopts, &value)) {
+			case 0:
+				set_vc_pad = strtoul(value, nullptr, 0);
+				break;
+			case 1:
+				set_vc_stream = strtoul(value, nullptr, 0);
+				break;
+			case 2:
+				set_vc_id = strtoul(value, nullptr, 0);
+				break;
+			default:
+				fprintf(stderr, "Unknown option\n");
+				subdev_usage();
+				std::exit(EXIT_FAILURE);
+			}
+		}
+		break;
 	case OptSetRouting: {
 		struct v4l2_subdev_route *r;
 		char *end, *ref, *tok;
@@ -683,6 +744,24 @@ void subdev_set(cv4l_fd &_fd)
 					fival.interval.denominator, fival.interval.numerator);
 		}
 	}
+	if (options[OptSetSubDevVC]) {
+		struct v4l2_subdev_vc vc;
+
+		if (!_fd.has_streams() && set_fps_stream) {
+			printf("Streams API not supported.\n");
+			return;
+		}
+
+		memset(&vc, 0, sizeof(vc));
+		vc.pad = set_vc_pad;
+		vc.stream = set_vc_stream;
+		vc.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		vc.vc = set_vc_id;
+
+		if (doioctl(fd, VIDIOC_SUBDEV_S_VC, &vc) == 0) {
+			printf("VC set\n");
+		}
+	}
 	if (options[OptSetRouting]) {
 		if (!_fd.has_streams()) {
 			printf("Streams API not supported.\n");
@@ -813,6 +892,24 @@ void subdev_get(cv4l_fd &_fd)
 					(1.0 * fival.interval.denominator) / fival.interval.numerator,
 					fival.interval.denominator, fival.interval.numerator);
 		}
+	}
+
+	if (options[OptGetSubDevVC]) {
+		struct v4l2_subdev_vc vc;
+
+		if (!_fd.has_streams() && get_fps_stream) {
+			printf("Streams API not supported.\n");
+			return;
+		}
+
+		memset(&vc, 0, sizeof(vc));
+		vc.pad = get_fps_pad;
+		vc.stream = get_fps_stream;
+		vc.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+
+		printf("ioctl: VIDIOC_SUBDEV_G_VC (pad=%u,stream=%u)\n", vc.pad, vc.stream);
+		if (doioctl(fd, VIDIOC_SUBDEV_G_VC, &vc) == 0)
+			printf("VC: %u\n", vc.vc);
 	}
 
 	if (options[OptGetRouting]) {

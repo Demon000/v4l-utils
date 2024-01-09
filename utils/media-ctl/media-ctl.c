@@ -102,6 +102,7 @@ static void v4l2_subdev_print_format(struct media_entity *entity,
 	struct v4l2_mbus_framefmt format;
 	struct v4l2_fract interval = { 0, 0 };
 	struct v4l2_rect rect;
+	__u32 vc_id;
 	int ret;
 
 	ret = v4l2_subdev_get_format(entity, &format, pad, stream, which);
@@ -115,6 +116,10 @@ static void v4l2_subdev_print_format(struct media_entity *entity,
 	printf("\t\t[stream:%u fmt:%s/%ux%u", stream,
 	       v4l2_subdev_pixelcode_to_string(format.code),
 	       format.width, format.height);
+
+	ret = v4l2_subdev_get_vc(entity, &vc_id, pad, stream, which);
+	if (ret == 0)
+		printf(" vc:%u", vc_id);
 
 	if (interval.numerator || interval.denominator)
 		printf("@%u/%u", interval.numerator, interval.denominator);

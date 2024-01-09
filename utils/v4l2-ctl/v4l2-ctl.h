@@ -155,6 +155,8 @@ enum Option {
 	OptTrySubDevSelection,
 	OptGetSubDevFPS,
 	OptSetSubDevFPS,
+	OptGetSubDevVC,
+	OptSetSubDevVC,
 	OptGetAudioInput,
 	OptSetAudioInput,
 	OptGetAudioOutput,
